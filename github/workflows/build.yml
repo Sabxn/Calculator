@@ -1,0 +1,486 @@
+name: Build Calculator APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Create the Android project
+        run: |
+          mkdir -p app app/src/main app/src/main/assets app/src/main/java/com/example/calculator app/src/main/res/drawable app/src/main/res/mipmap-anydpi-v26 app/src/main/res/values
+          cat > settings.gradle <<'END_FILE_0'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "Calculator"
+          include ':app'
+          END_FILE_0
+          cat > build.gradle <<'END_FILE_1'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          END_FILE_1
+          cat > gradle.properties <<'END_FILE_2'
+          org.gradle.jvmargs=-Xmx2g
+          android.nonTransitiveRClass=true
+          END_FILE_2
+          cat > app/build.gradle <<'END_FILE_3'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.example.calculator'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId "com.example.calculator"
+                  minSdk 26
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          END_FILE_3
+          cat > app/src/main/AndroidManifest.xml <<'END_FILE_4'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:allowBackup="false"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Calculator"
+                  android:theme="@style/AppTheme">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="portrait"
+                      android:configChanges="orientation|screenSize|keyboardHidden">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          END_FILE_4
+          cat > app/src/main/java/com/example/calculator/MainActivity.java <<'END_FILE_5'
+          package com.example.calculator;
+
+          import android.app.Activity;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.webkit.WebView;
+
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView web = new WebView(this);
+                  web.setBackgroundColor(Color.BLACK);
+                  web.getSettings().setJavaScriptEnabled(true);
+                  setContentView(web);
+                  web.loadUrl("file:///android_asset/index.html");
+              }
+          }
+          END_FILE_5
+          cat > app/src/main/res/values/styles.xml <<'END_FILE_6'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:statusBarColor">@android:color/black</item>
+                  <item name="android:navigationBarColor">@android:color/black</item>
+              </style>
+          </resources>
+          END_FILE_6
+          cat > app/src/main/res/values/colors.xml <<'END_FILE_7'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_bg">#FF9F0A</color>
+          </resources>
+          END_FILE_7
+          cat > app/src/main/res/drawable/ic_fg.xml <<'END_FILE_8'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="#FFFFFF" android:pathData="M34,40h40v8h-40z" />
+              <path android:fillColor="#FFFFFF" android:pathData="M34,60h40v8h-40z" />
+          </vector>
+          END_FILE_8
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'END_FILE_9'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_bg" />
+              <foreground android:drawable="@drawable/ic_fg" />
+          </adaptive-icon>
+          END_FILE_9
+          cat > app/src/main/assets/index.html <<'END_FILE_10'
+          <!doctype html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+          <style>html,body{margin:0}*,*::before,*::after{box-sizing:border-box}</style>
+          <title>iOS Calculator</title>
+          <style>
+          /* Layout: one phone-width column, readout sitting on top of a 4-column grid of round keys, zero spanning two. */
+          :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --digit: #333333;
+            --digit-hi: #737373;
+            --func: #a5a5a5;
+            --func-hi: #d9d9d9;
+            --func-fg: #000000;
+            --op: #ff9f0a;
+            --op-hi: #fcc78a;
+            --op-on-bg: #ffffff;
+            --op-on-fg: #ff9f0a;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --gap: clamp(10px, 3vw, 14px);
+            color-scheme: dark;
+          }
+          html, body { height: 100%; }
+          body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--font);
+            padding-left: max(16px, env(safe-area-inset-left, 0px));
+            padding-right: max(16px, env(safe-area-inset-right, 0px));
+            padding-block: 12px 20px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+          }
+          .calc {
+            width: 100%;
+            max-width: 420px;
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 8px;
+          }
+          #display {
+            height: 104px;
+            line-height: 104px;
+            padding: 0 6px;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            font-size: 88px;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
+          }
+          .keys {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--gap);
+          }
+          .keys button {
+            aspect-ratio: 1;
+            border: 0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            font-size: clamp(1.7rem, 8vw, 2.3rem);
+            font-weight: 400;
+            background: var(--digit);
+            color: var(--fg);
+            cursor: pointer;
+            transition: background-color 0.12s ease-out, color 0.12s ease-out;
+          }
+          .keys button:active { background: var(--digit-hi); transition-duration: 0s; }
+          .keys button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+          .keys .fn { background: var(--func); color: var(--func-fg); }
+          .keys .fn:active { background: var(--func-hi); }
+          .keys .op { background: var(--op); font-size: clamp(2rem, 10vw, 2.8rem); padding-bottom: 0.08em; }
+          .keys .op:active { background: var(--op-hi); }
+          .keys .op.on { background: var(--op-on-bg); color: var(--op-on-fg); }
+          .keys .zero {
+            grid-column: span 2;
+            aspect-ratio: auto;
+            border-radius: 999px;
+            justify-content: flex-start;
+            padding-left: clamp(26px, 9vw, 36px);
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .keys button { transition: none; }
+          }
+          </style>
+
+          <main class="calc">
+            <div id="display" role="status" aria-live="polite" aria-label="Result">0</div>
+            <div class="keys" id="keys">
+              <button class="fn" data-k="clear" id="clear" aria-label="All clear">AC</button>
+              <button class="fn" data-k="neg" aria-label="Plus or minus">+/&minus;</button>
+              <button class="fn" data-k="pct" aria-label="Percent">%</button>
+              <button class="op" data-k="/" aria-label="Divide">&divide;</button>
+
+              <button data-k="7">7</button>
+              <button data-k="8">8</button>
+              <button data-k="9">9</button>
+              <button class="op" data-k="*" aria-label="Multiply">&times;</button>
+
+              <button data-k="4">4</button>
+              <button data-k="5">5</button>
+              <button data-k="6">6</button>
+              <button class="op" data-k="-" aria-label="Subtract">&minus;</button>
+
+              <button data-k="1">1</button>
+              <button data-k="2">2</button>
+              <button data-k="3">3</button>
+              <button class="op" data-k="+" aria-label="Add">+</button>
+
+              <button class="zero" data-k="0">0</button>
+              <button data-k="dot" aria-label="Decimal point">.</button>
+              <button class="op" data-k="eq" aria-label="Equals">=</button>
+            </div>
+          </main>
+
+          <script>
+          (function () {
+            var disp = document.getElementById('display');
+            var clearBtn = document.getElementById('clear');
+            var opBtns = Array.prototype.slice.call(document.querySelectorAll('.keys .op'));
+
+            var cur = '0';        // what the readout shows, as a raw string
+            var acc = null;       // left operand while an operator is pending
+            var op = null;        // pending operator
+            var fresh = false;    // next digit starts a new number
+            var awaiting = false; // an operator was just pressed
+            var entered = false;  // user typed something for this number (AC becomes C)
+            var lastOp = null, lastB = null; // for repeated equals
+
+            function numToStr(n) {
+              if (!isFinite(n)) return 'Error';
+              n = Number(n.toPrecision(12));
+              if (n === 0) return '0';
+              var a = Math.abs(n);
+              if (a >= 1e9 || a < 1e-5) {
+                return n.toExponential(5).replace(/\.?0+e/, 'e').replace('e+', 'e');
+              }
+              return String(n);
+            }
+
+            function fmt(s) {
+              if (s === 'Error' || s.indexOf('e') !== -1) return s;
+              var neg = s.charAt(0) === '-';
+              var t = neg ? s.slice(1) : s;
+              var parts = t.split('.');
+              var i = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+              return (neg ? '-' : '') + i + (parts.length > 1 ? '.' + parts[1] : '');
+            }
+
+            function fit() {
+              var size = 88;
+              disp.style.fontSize = size + 'px';
+              while (disp.scrollWidth > disp.clientWidth && size > 28) {
+                size -= 2;
+                disp.style.fontSize = size + 'px';
+              }
+            }
+
+            function render() {
+              disp.textContent = fmt(cur);
+              clearBtn.textContent = entered ? 'C' : 'AC';
+              clearBtn.setAttribute('aria-label', entered ? 'Clear entry' : 'All clear');
+              opBtns.forEach(function (b) {
+                b.classList.toggle('on', awaiting && b.getAttribute('data-k') === op);
+              });
+              fit();
+            }
+
+            function calc(a, o, b) {
+              switch (o) {
+                case '+': return a + b;
+                case '-': return a - b;
+                case '*': return a * b;
+                case '/': return b === 0 ? Infinity : a / b;
+              }
+              return b;
+            }
+
+            function resetAll() {
+              cur = '0'; acc = null; op = null; fresh = false;
+              awaiting = false; entered = false; lastOp = null; lastB = null;
+            }
+
+            function digit(d) {
+              if (cur === 'Error') resetAll();
+              if (fresh) { cur = '0'; fresh = false; }
+              awaiting = false;
+              if (cur === '0') cur = d;
+              else if (cur === '-0') cur = '-' + d;
+              else if (cur.replace(/[^0-9]/g, '').length < 9) cur += d;
+              entered = true;
+            }
+
+            function dot() {
+              if (cur === 'Error') resetAll();
+              if (fresh) { cur = '0'; fresh = false; }
+              awaiting = false;
+              if (cur.indexOf('.') === -1) cur += '.';
+              entered = true;
+            }
+
+            function operator(o) {
+              if (cur === 'Error') return;
+              if (op && !fresh) {
+                var r = calc(acc, op, parseFloat(cur));
+                cur = numToStr(r);
+                if (cur === 'Error') { acc = null; op = null; fresh = true; awaiting = false; return; }
+                acc = parseFloat(cur);
+              } else if (!op) {
+                acc = parseFloat(cur);
+              }
+              op = o;
+              fresh = true;
+              awaiting = true;
+              entered = false;
+              lastOp = null;
+            }
+
+            function equals() {
+              if (cur === 'Error') return;
+              var r;
+              if (op) {
+                var b = parseFloat(cur);
+                r = calc(acc, op, b);
+                lastOp = op; lastB = b;
+                acc = null; op = null;
+              } else if (lastOp) {
+                r = calc(parseFloat(cur), lastOp, lastB);
+              } else {
+                return;
+              }
+              cur = numToStr(r);
+              fresh = true;
+              awaiting = false;
+              entered = false;
+            }
+
+            function percent() {
+              if (cur === 'Error') return;
+              var v = parseFloat(cur);
+              if (op && acc !== null && (op === '+' || op === '-')) v = acc * v / 100;
+              else v = v / 100;
+              cur = numToStr(v);
+              awaiting = false;
+              fresh = true;
+              entered = true;
+            }
+
+            function negate() {
+              if (cur === 'Error') return;
+              if (fresh && awaiting) { cur = '-0'; fresh = false; awaiting = false; entered = true; return; }
+              if (cur.charAt(0) === '-') cur = cur.slice(1);
+              else cur = '-' + cur;
+              if (cur === '-0' && !entered) entered = true;
+            }
+
+            function clear() {
+              if (entered && cur !== 'Error') { cur = '0'; entered = false; fresh = false; }
+              else resetAll();
+            }
+
+            function back() {
+              if (fresh || cur === 'Error') return;
+              var s = cur.slice(0, -1);
+              if (s === '' || s === '-') s = '0';
+              cur = s;
+            }
+
+            function press(k) {
+              if (k >= '0' && k <= '9' && k.length === 1) digit(k);
+              else if (k === 'dot') dot();
+              else if (k === '+' || k === '-' || k === '*' || k === '/') operator(k);
+              else if (k === 'eq') equals();
+              else if (k === 'pct') percent();
+              else if (k === 'neg') negate();
+              else if (k === 'clear') clear();
+              else if (k === 'back') back();
+              render();
+            }
+
+            document.getElementById('keys').addEventListener('click', function (e) {
+              var b = e.target.closest('button');
+              if (b) press(b.getAttribute('data-k'));
+            });
+
+            document.addEventListener('keydown', function (e) {
+              if (e.ctrlKey || e.metaKey || e.altKey) return;
+              var k = e.key, m = null;
+              if (k >= '0' && k <= '9' && k.length === 1) m = k;
+              else if (k === '.' || k === ',') m = 'dot';
+              else if (k === '+' || k === '-' || k === '*' || k === '/') m = k;
+              else if (k === 'x' || k === 'X') m = '*';
+              else if (k === 'Enter' || k === '=') m = 'eq';
+              else if (k === '%') m = 'pct';
+              else if (k === 'Escape' || k === 'Delete') { resetAll(); render(); e.preventDefault(); return; }
+              else if (k === 'Backspace') m = 'back';
+              if (m !== null) { e.preventDefault(); press(m); }
+            });
+
+            window.addEventListener('resize', fit);
+            render();
+          })();
+          </script>
+
+          </body>
+          </html>
+          END_FILE_10
+
+      - name: Build the app
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Publish the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Calculator.apk
+          gh release create "v${{ github.run_number }}" Calculator.apk --repo "$GITHUB_REPOSITORY" --title "Calculator v${{ github.run_number }}" --notes "Debug build of the calculator app."
+          
